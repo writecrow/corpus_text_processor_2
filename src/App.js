@@ -9,14 +9,14 @@ import { DOMParser } from "@xmldom/xmldom";
 // Retain file structure
 
 let fileUpload = document.getElementById("fileUpload");
-let utf8 = document.getElementById("utf8");
+let process = document.getElementById("process");
 let tableBody = document.getElementById("tableBody");
 let processed = [];
 
 /* Initialize start state */
 document.addEventListener("DOMContentLoaded", function () {
-  utf8.setAttribute("disabled", "disabled");
   fileUpload.value = null;
+  process.setAttribute("disabled", "disabled");
 });
 
 /* BEGIN HELPER FUNCTIONS */
@@ -128,8 +128,9 @@ function formatBytes(bytes, decimals = 2) {
 /**
  * Convert text files to `utf8`.
  */
-document.getElementById("utf8").addEventListener("click", (event) => {
+document.getElementById("process").addEventListener("click", (event) => {
   event.preventDefault();
+  // @todo: find which process should be run...
   generateDownload();
 })
 
@@ -176,7 +177,7 @@ fileUpload.onchange = function () {
       tableBody.innerHTML += "<tr><td>" + file.name + "</td><td>" + file.type + "</td><td>" + formatBytes(file.size) + "</td><td id='" + file.webkitRelativePath.hashCode() + "analysis'></td><td id='" + file.webkitRelativePath.hashCode() + "result'></td></tr>";
     });
     processFiles(files);
-    utf8.removeAttribute("disabled");
+    process.removeAttribute("disabled");
   }
 };
 

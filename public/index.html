@@ -24,15 +24,26 @@
       </div>
 
       <div>
-        <label>
-          <h3>Step 2: Choose processor</h3>
-          <input type="submit" value="Convert to plaintext" id="utf8" />
-          <input type="submit" value="Normalize characters" id="normalize" disabled />
-          <input type="submit" value="Remove PDF metadata" id="metadata" disabled />
-        </label>
+        <h3>Step 2: Choose processor</h3>
+        <div>
+          <input class="inline" type="radio" id="convert" name="processor" value="convert" checked="checked">
+          <label class="inline" for="convert">Convert to plaintext</label>
+        </div>
+        <div>
+          <input class="inline"type="radio" id="utf8" name="processor" value="utf8">
+          <label class="inline" for="utf8">Encode in UTF-8</label>
+        </div>
+        <div>
+          <input class="inline" type="radio" id="standardize" name="processor" value="standardize">
+          <label class="inline" for="standardize">Standardize non-ASCII characters and remove non-English characters</label>
+        </div>
       </div>
       <div>
-        <h3>Step 3: Download processed files</h3>
+        <h3>Step 3: Process files</h3>
+        <button id="process">Process files</button>
+      </div>
+      <div>
+        <h3>Step 4: Download processed files</h3>
         <a id="download">Download processed files</a>
       </div>
     </form>
