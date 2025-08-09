@@ -17,6 +17,7 @@
 8. Sentence normalization.Missing space;Missing space,followed by two.1 numeral add space lOwercase
 Newlinesentence
 9. Flatten diacritics
+
 áàãäâåāăąǎȃȧ
 ÁÀÃÄÂÅĀĂĄǍȂȦ
 éèêëēĕėęěȇ
@@ -40,10 +41,16 @@ Newlinesentence
 Japanese:ル
 Chinese:嗰
 Cyrillic:ю
-11. Get rid of weird line breaks
-12. Get rid of double spaces
+11. Get rid of line break followed by lowercase starting line:
+Line preceding a newline
+
+a lowercase following a newline
+12. Get rid of multiple spaces: word  twospace   threespace
 13. Get rid of spaces and the beginning of a line
+ One space
+  Two space
 14. Restore tab with TAB
+Tab is preserved here->	<-
 </pre>
 </div>
 </div>
@@ -58,6 +65,10 @@ Cyrillic:ю
   function standardize(text) {
     var result = text;
     // https://symbl.cc/en/unicode-table/#general-punctuation
+    // 0. Temporarily replace tab character with <TAB>
+    const tabCharacter = '/\t/gm';
+    const tabPlaceholder = '<TAB>';
+    result = result.replace(tabCharacter, tabPlaceholder);
     // 1. Replace smart quotes with regular quotes
     result = result
       .replace(/[\u2018\u2019\u201a\u201b\u2032\u2035]/g, "'")
@@ -78,8 +89,10 @@ Cyrillic:ю
     result = result
       .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015]/g, "-");
     // 7. Sentence normalization
-    const punctuationFollowedByNonSpace = /([\.\?;:])([A-Z][a-z]+)/gm;
     const addSpace = `$1 $2`;
+    const empty = '';
+    const addPeriodSpace = `$1. $2`;
+    const punctuationFollowedByNonSpace = /([\.\?;:])([A-Z][a-z]+)/gm;
     result = result.replace(punctuationFollowedByNonSpace, addSpace);
     const punctuationFollowedByTwoLowercase = /([,;:])([a-z][a-z]+)/gm;
     result = result.replace(punctuationFollowedByTwoLowercase, addSpace);
@@ -88,9 +101,11 @@ Cyrillic:ю
     const punctuationFollowedByNumeral = /([\.\?;:])([0-9]+\s+)/gm;
     result = result.replace(punctuationFollowedByNumeral, addSpace);
     const lowerFollowedByNewlineUppercase = /([a-z])(\n[A-Z])/gm;
-    const addPeriodSpace = `$1. $2`;
     result = result.replace(lowerFollowedByNewlineUppercase, addPeriodSpace);
-    // 8. Flatten diacritics
+    // 8. Replace newlines followed by lowercase character.
+    const newlineFollowedByLowercase = /([a-z]+)\s*\n\s*([a-z]+)/gm;
+    result = result.replace(newlineFollowedByLowercase, addSpace);
+    // 9. Flatten diacritics
     result = result.replace(/[áàãäâåāăąǎȃȧ]/g, 'a');
     result = result.replace(/[ÁÀÃÄÂÅĀĂĄǍȂȦ]/g, 'A');
     result = result.replace(/[éèêëēĕėęěȇ]/g, 'e');
@@ -110,10 +125,17 @@ Cyrillic:ю
     result = result.replace(/[ÇĆĈĊČ]/g, 'C');
     result = result.replace(/ñ/g, 'n');
     result = result.replace(/Ñ/g, 'N');
-    // 9. Remove non-English characters.
+    // 10. Remove non-English characters.
     const anyNonEnglishCharacter = /[^\x00-\x7F]+/gm;
-    const empty = '';
     result = result.replace(anyNonEnglishCharacter, empty);
+    // 11. Replace multiple consecutive spaces with a single space.
+    const multipleSpaces = / {2,}/gm;
+    result = result.replace(multipleSpaces, ' ');
+    // 12. Remove spaces at beginning of line.
+    const spacesAtBeginningOfLine = /^ +|$/gm;
+    result = result.replace(spacesAtBeginningOfLine, empty);
+    // 13. Re-insert tab characters (see Step 0).
+    result = result.replace(tabPlaceholder, tabCharacter);
     return result;
   }
 

@@ -21,6 +21,83 @@ document.addEventListener("DOMContentLoaded", function () {
 
 /* BEGIN HELPER FUNCTIONS */
 
+function standardize(text) {
+  var result = text;
+  // https://symbl.cc/en/unicode-table/#general-punctuation
+  // 0. Temporarily replace tab character with <TAB>
+  const tabCharacter = '/\t/gm';
+  const tabPlaceholder = '<TAB>';
+  result = result.replace(tabCharacter, tabPlaceholder);
+  // 1. Replace smart quotes with regular quotes
+  result = result
+    .replace(/[\u2018\u2019\u201a\u201b\u2032\u2035]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2034\u2036\u2037]/g, '"');
+  // 2. Replace i with diacritics with quotes
+  result = result
+    .replace(/[ì\í]/g, '"');
+  // 3. Replace ellipsis with single period
+  result = result
+    .replace(/[\u2024\u2025\u2026]/g, ".");
+  // 4. Replace Armenian apostrophe with regular
+  result = result
+    .replace(/[\u055a]/g, "'");
+  // 5. Replace inverted question mark with nothing
+  result = result
+    .replace(/[\u00bf]/g, " ");
+  // 6. Replace all dashes with hyphen
+  result = result
+    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015]/g, "-");
+  // 7. Sentence normalization
+  const addSpace = `$1 $2`;
+  const empty = '';
+  const addPeriodSpace = `$1. $2`;
+  const punctuationFollowedByNonSpace = /([\.\?;:])([A-Z][a-z]+)/gm;
+  result = result.replace(punctuationFollowedByNonSpace, addSpace);
+  const punctuationFollowedByTwoLowercase = /([,;:])([a-z][a-z]+)/gm;
+  result = result.replace(punctuationFollowedByTwoLowercase, addSpace);
+  const lowercaseFollowedByUppercase = /([a-z])([A-Z])/gm;
+  result = result.replace(lowercaseFollowedByUppercase, addSpace);
+  const punctuationFollowedByNumeral = /([\.\?;:])([0-9]+\s+)/gm;
+  result = result.replace(punctuationFollowedByNumeral, addSpace);
+  const lowerFollowedByNewlineUppercase = /([a-z])(\n[A-Z])/gm;
+  result = result.replace(lowerFollowedByNewlineUppercase, addPeriodSpace);
+  // 8. Replace newlines followed by lowercase character.
+  const newlineFollowedByLowercase = /([a-z]+)\s*\n\s*([a-z]+)/gm;
+  result = result.replace(newlineFollowedByLowercase, addSpace);
+  // 9. Flatten diacritics
+  result = result.replace(/[áàãäâåāăąǎȃȧ]/g, 'a');
+  result = result.replace(/[ÁÀÃÄÂÅĀĂĄǍȂȦ]/g, 'A');
+  result = result.replace(/[éèêëēĕėęěȇ]/g, 'e');
+  result = result.replace(/[ÉÈÊËĒĔĖĘĚȆ]/g, 'E');
+  result = result.replace(/[íìîïīĭįǐȋ]/g, 'i');
+  result = result.replace(/[ÍÌÎÏĪĬĮİǏȊ]/g, 'I');
+  result = result.replace(/[øóòöõôȏȯ]/g, 'o');
+  result = result.replace(/[ØÓÒÖÕÔȎȮ]/g, 'O');
+  result = result.replace(/[úùüûǔȗ]/g, 'u');
+  result = result.replace(/[ÚÙÜÛǓȖ]/g, 'U');
+  result = result.replace(/[ÝȲ]/g, 'Y');
+  result = result.replace(/[ýÿȳ]/g, 'y');
+  result = result.replace(/œ/g, 'oe');
+  result = result.replace(/æ/g, 'ae');
+  result = result.replace(/Æ/g, 'AE');
+  result = result.replace(/[çćĉċč]/g, 'c');
+  result = result.replace(/[ÇĆĈĊČ]/g, 'C');
+  result = result.replace(/ñ/g, 'n');
+  result = result.replace(/Ñ/g, 'N');
+  // 10. Remove non-English characters.
+  const anyNonEnglishCharacter = /[^\x00-\x7F]+/gm;
+  result = result.replace(anyNonEnglishCharacter, empty);
+  // 11. Replace multiple consecutive spaces with a single space.
+  const multipleSpaces = / {2,}/gm;
+  result = result.replace(multipleSpaces, ' ');
+  // 12. Remove spaces at beginning of line.
+  const spacesAtBeginningOfLine = /^ +|$/gm;
+  result = result.replace(spacesAtBeginningOfLine, empty);
+  // 13. Re-insert tab characters (see Step 0).
+  result = result.replace(tabPlaceholder, tabCharacter);
+  return result;
+}
+
 // See https://github.com/mozilla/pdf.js/issues/11960
 // and https://stackoverflow.com/questions/40482569/troubles-with-pdf-js-promises/40494019#40494019
 async function gettext(pdfUrl) {
@@ -130,9 +207,52 @@ function formatBytes(bytes, decimals = 2) {
  */
 document.getElementById("process").addEventListener("click", (event) => {
   event.preventDefault();
-  // @todo: find which process should be run...
-  generateDownload();
+  // Find which process should be run...
+  var executor = '';
+  var processors = document.getElementsByName('processor');
+  for (var i = 0; i < processors.length; i++) {
+    if (processors[i].checked)
+      executor = processors[i].id;
+  }
+  if (executor === 'standardize') {
+    standardizeAndDownload();
+  }
+  else if (executor === 'convert') {
+    generateDownload();
+  }
+  else if (executor === 'utf8') {
+    console.log('encoding into utf8...');
+  }
 })
+
+async function standardizeAndDownload() {
+  var zip = new JSZip();
+  for (const result of processed) {
+    // Print message to screen and zip processed files
+    let results = document.getElementById(result.hash + 'result');
+
+    if (result.data !== null) {
+      var standardized = standardize(result.data);
+      zip.file(result.name + '.txt', standardized);
+      results.innerHTML = '<span>Processed successfully</span>';
+    }
+    else {
+      if (result.result !== null) {
+        results.innerHTML = '<span>' + result.result + '</span>';
+      }
+      else {
+        results.innerHTML = '<span>Unable to process</span>';
+      }
+    }
+  }
+  const zipData = await zip.generateAsync({ type: "blob" });
+  const link = document.getElementById("download");
+  link.classList.add("ready");
+  const d = new Date();
+  const timestamp = d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate();
+  link.href = window.URL.createObjectURL(zipData);
+  link.download = "processed-" + timestamp + ".zip";
+}
 
 async function generateDownload() {
   var zip = new JSZip();
