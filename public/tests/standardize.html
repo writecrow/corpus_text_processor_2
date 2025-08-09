@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<h1>Testing standardization...</h1>
+</html>
+
+<div style="border:1px solid black; width: 45vw; display: inline-block; background:lightyellow; float:left;">
+<h3>Original data</h3>
+<div id="original">
+<pre>
+1. Replace tabs with TAB (temporarily, see last step)
+2. Replace smart quotes with regular quotes: 2018:’2019:‘201C:”201D:“201A:‚201B:‛ 201E:„201F:‟2032:′2033:″2034:‴2035:‵2036:‶2037:‷
+3. Replace i with diacritics with quotes: ì í
+4. Replace ellipsis with single period: ․ ‥ …
+5. Replace Armenian apostrophe with regular apostrophe: ՚
+6. Replace inverted question mark with nothing: ¿
+7. Replace all dashes with a regular hyphen ‐ ‑ ‒ – — ―
+8. Sentence normalization.Missing space;Missing space,followed by two.1 numeral add space lOwercase
+Newlinesentence
+9. Flatten diacritics
+áàãäâåāăąǎȃȧ
+ÁÀÃÄÂÅĀĂĄǍȂȦ
+éèêëēĕėęěȇ
+ÉÈÊËĒĔĖĘĚȆ
+íìîïīĭįǐȋ
+ÍÌÎÏĪĬĮİǏȊ
+øóòöõôȏȯ
+ØÓÒÖÕÔȎȮ
+úùüûǔȗ
+ÚÙÜÛǓȖ
+ÝȲ
+ýÿȳ
+œ
+æ
+Æ
+çćĉċč
+ÇĆĈĊČ
+ñ
+Ñ
+10. Remove non-English characters
+Japanese:ル
+Chinese:嗰
+Cyrillic:ю
+11. Get rid of weird line breaks
+12. Get rid of double spaces
+13. Get rid of spaces and the beginning of a line
+14. Restore tab with TAB
+</pre>
+</div>
+</div>
+<div style="border:1px solid black; width: 45vw; display: inline-block; background:lightcyan; float:left">
+<h3>Processed</h3>
+<div id="processed">
+
+</div>
+</div>
+
+<script>
+  function standardize(text) {
+    var result = text;
+    // https://symbl.cc/en/unicode-table/#general-punctuation
+    // 1. Replace smart quotes with regular quotes
+    result = result
+      .replace(/[\u2018\u2019\u201a\u201b\u2032\u2035]/g, "'")
+      .replace(/[\u201C\u201D\u201E\u201F\u2033\u2034\u2036\u2037]/g, '"');
+    // 2. Replace i with diacritics with quotes
+    result = result
+      .replace(/[ì\í]/g,'"');
+    // 3. Replace ellipsis with single period
+    result = result
+      .replace(/[\u2024\u2025\u2026]/g, ".");
+    // 4. Replace Armenian apostrophe with regular
+    result = result
+      .replace(/[\u055a]/g, "'");
+    // 5. Replace inverted question mark with nothing
+    result = result
+      .replace(/[\u00bf]/g, " ");
+    // 6. Replace all dashes with hyphen
+    result = result
+      .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015]/g, "-");
+    // 7. Sentence normalization
+    const punctuationFollowedByNonSpace = /([\.\?;:])([A-Z][a-z]+)/gm;
+    const addSpace = `$1 $2`;
+    result = result.replace(punctuationFollowedByNonSpace, addSpace);
+    const punctuationFollowedByTwoLowercase = /([,;:])([a-z][a-z]+)/gm;
+    result = result.replace(punctuationFollowedByTwoLowercase, addSpace);
+    const lowercaseFollowedByUppercase = /([a-z])([A-Z])/gm;
+    result = result.replace(lowercaseFollowedByUppercase, addSpace);
+    const punctuationFollowedByNumeral = /([\.\?;:])([0-9]+\s+)/gm;
+    result = result.replace(punctuationFollowedByNumeral, addSpace);
+    const lowerFollowedByNewlineUppercase = /([a-z])(\n[A-Z])/gm;
+    const addPeriodSpace = `$1. $2`;
+    result = result.replace(lowerFollowedByNewlineUppercase, addPeriodSpace);
+    // 8. Flatten diacritics
+    result = result.replace(/[áàãäâåāăąǎȃȧ]/g, 'a');
+    result = result.replace(/[ÁÀÃÄÂÅĀĂĄǍȂȦ]/g, 'A');
+    result = result.replace(/[éèêëēĕėęěȇ]/g, 'e');
+    result = result.replace(/[ÉÈÊËĒĔĖĘĚȆ]/g, 'E');
+    result = result.replace(/[íìîïīĭįǐȋ]/g, 'i');
+    result = result.replace(/[ÍÌÎÏĪĬĮİǏȊ]/g, 'I');
+    result = result.replace(/[øóòöõôȏȯ]/g, 'o');
+    result = result.replace(/[ØÓÒÖÕÔȎȮ]/g, 'O');
+    result = result.replace(/[úùüûǔȗ]/g, 'u');
+    result = result.replace(/[ÚÙÜÛǓȖ]/g, 'U');
+    result = result.replace(/[ÝȲ]/g, 'Y');
+    result = result.replace(/[ýÿȳ]/g, 'y');
+    result = result.replace(/œ/g, 'oe');
+    result = result.replace(/æ/g, 'ae');
+    result = result.replace(/Æ/g, 'AE');
+    result = result.replace(/[çćĉċč]/g, 'c');
+    result = result.replace(/[ÇĆĈĊČ]/g, 'C');
+    result = result.replace(/ñ/g, 'n');
+    result = result.replace(/Ñ/g, 'N');
+    // 9. Remove non-English characters.
+    const anyNonEnglishCharacter = /[^\x00-\x7F]+/gm;
+    const empty = '';
+    result = result.replace(anyNonEnglishCharacter, empty);
+    return result;
+  }
+
+  const original = document.getElementById("original");
+  const output = document.getElementById("processed");
+  processed = standardize(original.innerHTML);
+  output.innerHTML = processed;
+  console.log('complete!');
+</script>
