@@ -16,6 +16,12 @@ const allowedTextExtensions = [
   'text/plain',
   'text/html',
 ];
+const allowedExtensions = [
+  'text/plain',
+  'text/html',
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
 
 /* Initialize start state */
 document.addEventListener("DOMContentLoaded", function () {
@@ -198,12 +204,7 @@ String.prototype.hashCode = function () {
 }
 
 function validateFile(file) {
-  if (
-    file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ) {
-    return true;
-  }
-  else if (!allowedTextExtensions.includes(file.type)) {
+  if (!allowedExtensions.includes(file.type)) {
     return false;
   }
   return true;
@@ -285,59 +286,34 @@ document.getElementById("process").addEventListener("click", (event) => {
       executor = processors[i].id;
   }
   if (executor === 'standardize') {
-    standardizeAndDownload();
+    generateDownload('standardize');
   }
   else if (executor === 'convert') {
-    convertAndDownload();
+    generateDownload('convert');
   }
   else if (executor === 'utf8') {
-    convertAndDownload();
+    generateDownload('utf8');
   }
 })
 
-async function standardizeAndDownload() {
+async function generateDownload(operation) {
   var zip = new JSZip();
   for (const result of processed) {
     // Print message to screen and zip processed files
     let results = document.getElementById(result.hash + 'result');
 
     if (result.data !== null) {
-      var standardized = standardize(result.data);
+      let finalData = result.data;
+      if (operation == 'standardize') {
+        finalData = standardize(finalData);
+      }
       if (zip.file(result.fullpath + '.txt') == null) {
-        zip.file(result.fullpath + '.txt', standardized);
+        zip.file(result.fullpath + '.txt', finalData);
       }
       else {
         // If a same-name file exists, append the original file extension.
-        zip.file(result.fullpath + '-' +result.extension + '.txt', standardized);
+        zip.file(result.fullpath + '-' + result.extension + '.txt', finalData);
       }
-      results.innerHTML = '<span>Processed successfully</span>';
-    }
-    else {
-      if (result.result !== null) {
-        results.innerHTML = '<span>' + result.result + '</span>';
-      }
-      else {
-        results.innerHTML = '<span>Unable to process</span>';
-      }
-    }
-  }
-  const zipData = await zip.generateAsync({ type: "blob" });
-  const link = document.getElementById("download");
-  link.classList.add("ready");
-  const d = new Date();
-  const timestamp = d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate();
-  link.href = window.URL.createObjectURL(zipData);
-  link.download = "processed-" + timestamp + ".zip";
-}
-
-async function convertAndDownload() {
-  var zip = new JSZip();
-  for (const result of processed) {
-    // Print message to screen and zip processed files
-    let results = document.getElementById(result.hash + 'result');
-
-    if (result.data !== null) {
-      zip.file(result.name + '.txt', result.data);
       results.innerHTML = '<span>Processed successfully</span>';
     }
     else {
@@ -444,7 +420,7 @@ async function processFile(file) {
       result.analysis = getAnalysis(file, '');
     },
     function (reason) {
-      result.analysis = reason;
+      result.analysis = '<span class="warning">' + reason + '</span>';
     });
   }
   else if (!allowedTextExtensions.includes(file.type)) {
