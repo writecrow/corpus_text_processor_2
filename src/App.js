@@ -12,6 +12,10 @@ let fileUpload = document.getElementById("fileUpload");
 let process = document.getElementById("process");
 let tableBody = document.getElementById("tableBody");
 let processed = [];
+const allowedTextExtensions = [
+  'text/plain',
+  'text/html',
+];
 
 /* Initialize start state */
 document.addEventListener("DOMContentLoaded", function () {
@@ -199,7 +203,7 @@ function validateFile(file) {
   ) {
     return true;
   }
-  else if (file.type !== 'text/plain') {
+  else if (!allowedTextExtensions.includes(file.type)) {
     return false;
   }
   return true;
@@ -218,13 +222,12 @@ function mapEncoding(format) {
   // The key is encoding provided by the`chardet`(see https://github.com/chardet/chardet).
   // The value is the encoding to use from iconv
   var encodingMap = {
-    'ascii': 'ascii',
     'ASCII': 'ascii',
     'BIG5': 'big5',
     'CP932': 'cp932',
     'GB2312': 'gb2312',
-    'EUC-KR': 'euc_kr',
-    'EUC-JP': 'euc_jp',
+    'EUC-KR': 'euc-kr',
+    'EUC-JP': 'euc-jp',
     'EUC-TW': 'gb18030',
     'HZ-GB-2312': 'hz',
     'IBM855': 'cp855',
@@ -234,13 +237,13 @@ function mapEncoding(format) {
     'ISO-2022-KR': 'iso-2022-kr',
     'ISO-8859-1': 'iso8859_1',
     'ISO-8859-2': 'iso8859-2',
-    'ISO-8859-5': 'iso8859_5',
-    'ISO-8859-7': 'iso8859_7',
-    'ISO-8859-8': 'iso8859_8',
-    'KOI8-R': 'koi8_r',
+    'ISO-8859-5': 'iso8859-5',
+    'ISO-8859-7': 'iso8859-7',
+    'ISO-8859-8': 'iso8859-8',
+    'KOI8-R': 'koi8-r',
     'x-mac-cyrillic': 'cp1256',
     'MACCYRILLIC': 'cp1256',
-    'SHIFT_JIS': 'Shift_JIS',
+    'SHIFT_JIS': 'shift-jis',
     'TIS-620': 'cp874',
     'WINDOWS-1251': 'windows-1251',
     'WINDOWS-1252': 'cp1252',
@@ -249,7 +252,8 @@ function mapEncoding(format) {
     'WINDOWS-1255': 'cp1255',
     'UTF-8-SIG': 'utf-8-sig',
     'UTF-16': 'utf-16',
-    'UTF-32': 'utf_32',
+    'UTF-32': 'utf-32',
+    'UTF-32LE': 'utf-32',
   }
   if (format in encodingMap) {
     return encodingMap[format];
@@ -290,40 +294,6 @@ document.getElementById("process").addEventListener("click", (event) => {
     convertAndDownload();
   }
 })
-
-//async function utf8encodeAndDownload() {
-//  var zip = new JSZip();
-//  for (const result of processed) {
-//    // Print message to screen and zip processed files
-//    let results = document.getElementById(result.hash + 'result');
-
-//    if (result.data !== null) {
-//      var standardized = utf8Encode(result.data);
-//      if (standardized !== false) {
-//        zip.file(result.name + '.txt', standardized);
-//        results.innerHTML = '<span>Processed successfully</span>';
-//      }
-//      else {
-//        results.innerHTML = '<span class="warning">Unabled to encode in utf-8</span>';
-//      }
-//    }
-//    else {
-//      if (result.result !== null) {
-//        results.innerHTML = '<span>' + result.result + '</span>';
-//      }
-//      else {
-//        results.innerHTML = '<span>Unable to process</span>';
-//      }
-//    }
-//  }
-//  const zipData = await zip.generateAsync({ type: "blob" });
-//  const link = document.getElementById("download");
-//  link.classList.add("ready");
-//  const d = new Date();
-//  const timestamp = d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate();
-//  link.href = window.URL.createObjectURL(zipData);
-//  link.download = "processed-" + timestamp + ".zip";
-//}
 
 async function standardizeAndDownload() {
   var zip = new JSZip();
@@ -420,13 +390,17 @@ async function processFiles(files) {
   }
 }
 
+function trimExtension(filename) {
+  return filename.replace(/\.[^/.]+$/, "");
+}
+
 /**
  * Process a single file, provide a result message & text body.
  */
 async function processFile(file) {
   let result = {
     'hash': file.webkitRelativePath.hashCode(),
-    'name': file.name,
+    'name': trimExtension(file.name),
     'analysis': '',
     'result': '',
     'data': null,
@@ -453,7 +427,7 @@ async function processFile(file) {
       result.analysis = reason;
     });
   }
-  else if (file.type !== 'text/plain') {
+  else if (!allowedTextExtensions.includes(file.type)) {
     result.analysis = getAnalysis(file, '');
   }
   else {
@@ -467,8 +441,6 @@ async function processFile(file) {
         let format = encoding['encoding'];
         format = mapEncoding(format);
         var decoded = await readUploadedFileAsText(file, format);
-        console.log(format);
-        console.log(decoded);
         result.data = decoded;
       }
     }
