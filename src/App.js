@@ -34,7 +34,7 @@ function standardize(text) {
     .replace(/[\u201C\u201D\u201E\u201F\u2033\u2034\u2036\u2037]/g, '"');
   // 2. Replace i with diacritics with quotes
   result = result
-    .replace(/[ì\í]/g, '"');
+    .replace(/[ìí]/g, '"');
   // 3. Replace ellipsis with single period
   result = result
     .replace(/[\u2024\u2025\u2026]/g, ".");
@@ -51,13 +51,13 @@ function standardize(text) {
   const addSpace = `$1 $2`;
   const empty = '';
   const addPeriodSpace = `$1. $2`;
-  const punctuationFollowedByNonSpace = /([\.\?;:])([A-Z][a-z]+)/gm;
+  const punctuationFollowedByNonSpace = /([.?;:])([A-Z][a-z]+)/gm;
   result = result.replace(punctuationFollowedByNonSpace, addSpace);
   const punctuationFollowedByTwoLowercase = /([,;:])([a-z][a-z]+)/gm;
   result = result.replace(punctuationFollowedByTwoLowercase, addSpace);
   const lowercaseFollowedByUppercase = /([a-z])([A-Z])/gm;
   result = result.replace(lowercaseFollowedByUppercase, addSpace);
-  const punctuationFollowedByNumeral = /([\.\?;:])([0-9]+\s+)/gm;
+  const punctuationFollowedByNumeral = /([.?;:])([0-9]+\s+)/gm;
   result = result.replace(punctuationFollowedByNumeral, addSpace);
   const lowerFollowedByNewlineUppercase = /([a-z])(\n[A-Z])/gm;
   result = result.replace(lowerFollowedByNewlineUppercase, addPeriodSpace);
@@ -108,7 +108,7 @@ async function gettext(pdfUrl) {
   return text;
 }
 
-const readUploadedFileAsText = (inputFile) => {
+const readUploadedFileAsBuffer = (inputFile) => {
   const temporaryFileReader = new FileReader();
   return new Promise((resolve, reject) => {
     temporaryFileReader.onerror = () => {
@@ -118,7 +118,21 @@ const readUploadedFileAsText = (inputFile) => {
     temporaryFileReader.onload = () => {
       resolve(temporaryFileReader.result);
     };
-    temporaryFileReader.readAsText(inputFile);
+    temporaryFileReader.readAsArrayBuffer(inputFile);
+  });
+};
+
+const readUploadedFileAsText = (inputFile, encoding) => {
+  const temporaryFileReader = new FileReader();
+  return new Promise((resolve, reject) => {
+    temporaryFileReader.onerror = () => {
+      temporaryFileReader.abort();
+      reject(new DOMException("Problem parsing input file."));
+    };
+    temporaryFileReader.onload = () => {
+      resolve(temporaryFileReader.result);
+    };
+    temporaryFileReader.readAsText(inputFile, encoding);
   });
 };
 
@@ -191,6 +205,58 @@ function validateFile(file) {
   return true;
 }
 
+function getAnalysis(file, fileContents) {
+  const encoding = chardet.detect(fileContents);
+  let validated = validateFile(file);
+  if (validated === false) {
+    return '<span class="warning">&#9888; This file type is not supported.</span>';
+  }
+  return 'Detected encoding: ' + mapEncoding(encoding['encoding']);
+}
+
+function mapEncoding(format) {
+  // The key is encoding provided by the`chardet`(see https://github.com/chardet/chardet).
+  // The value is the encoding to use from iconv
+  var encodingMap = {
+    'ascii': 'ascii',
+    'ASCII': 'ascii',
+    'BIG5': 'big5',
+    'CP932': 'cp932',
+    'GB2312': 'gb2312',
+    'EUC-KR': 'euc_kr',
+    'EUC-JP': 'euc_jp',
+    'EUC-TW': 'gb18030',
+    'HZ-GB-2312': 'hz',
+    'IBM855': 'cp855',
+    'IBM866': 'cp866',
+    'ISO-2022-CN': 'gb2312',
+    'ISO-2022-JP': 'iso-2022-jp',
+    'ISO-2022-KR': 'iso-2022-kr',
+    'ISO-8859-1': 'iso8859_1',
+    'ISO-8859-2': 'iso8859-2',
+    'ISO-8859-5': 'iso8859_5',
+    'ISO-8859-7': 'iso8859_7',
+    'ISO-8859-8': 'iso8859_8',
+    'KOI8-R': 'koi8_r',
+    'x-mac-cyrillic': 'cp1256',
+    'MACCYRILLIC': 'cp1256',
+    'SHIFT_JIS': 'Shift_JIS',
+    'TIS-620': 'cp874',
+    'WINDOWS-1251': 'windows-1251',
+    'WINDOWS-1252': 'cp1252',
+    'WINDOWS-1253': 'cp1253',
+    'WINDOWS-1254': 'cp1254',
+    'WINDOWS-1255': 'cp1255',
+    'UTF-8-SIG': 'utf-8-sig',
+    'UTF-16': 'utf-16',
+    'UTF-32': 'utf_32',
+  }
+  if (format in encodingMap) {
+    return encodingMap[format];
+  }
+  return format;
+}
+
 function formatBytes(bytes, decimals = 2) {
   if (!+bytes) return '0 Bytes'
   const k = 1024
@@ -218,12 +284,46 @@ document.getElementById("process").addEventListener("click", (event) => {
     standardizeAndDownload();
   }
   else if (executor === 'convert') {
-    generateDownload();
+    convertAndDownload();
   }
   else if (executor === 'utf8') {
-    console.log('encoding into utf8...');
+    convertAndDownload();
   }
 })
+
+//async function utf8encodeAndDownload() {
+//  var zip = new JSZip();
+//  for (const result of processed) {
+//    // Print message to screen and zip processed files
+//    let results = document.getElementById(result.hash + 'result');
+
+//    if (result.data !== null) {
+//      var standardized = utf8Encode(result.data);
+//      if (standardized !== false) {
+//        zip.file(result.name + '.txt', standardized);
+//        results.innerHTML = '<span>Processed successfully</span>';
+//      }
+//      else {
+//        results.innerHTML = '<span class="warning">Unabled to encode in utf-8</span>';
+//      }
+//    }
+//    else {
+//      if (result.result !== null) {
+//        results.innerHTML = '<span>' + result.result + '</span>';
+//      }
+//      else {
+//        results.innerHTML = '<span>Unable to process</span>';
+//      }
+//    }
+//  }
+//  const zipData = await zip.generateAsync({ type: "blob" });
+//  const link = document.getElementById("download");
+//  link.classList.add("ready");
+//  const d = new Date();
+//  const timestamp = d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate();
+//  link.href = window.URL.createObjectURL(zipData);
+//  link.download = "processed-" + timestamp + ".zip";
+//}
 
 async function standardizeAndDownload() {
   var zip = new JSZip();
@@ -254,7 +354,7 @@ async function standardizeAndDownload() {
   link.download = "processed-" + timestamp + ".zip";
 }
 
-async function generateDownload() {
+async function convertAndDownload() {
   var zip = new JSZip();
   for (const result of processed) {
     // Print message to screen and zip processed files
@@ -320,15 +420,6 @@ async function processFiles(files) {
   }
 }
 
-function getAnalysis(file, fileContents) {
-  const encoding = chardet.detect(fileContents);
-  let validated = validateFile(file);
-  if (validated === false) {
-    return '<span class="warning">&#9888; This file type is not supported.</span>';
-  }
-  return 'Detected encoding: ' + encoding['encoding'];
-}
-
 /**
  * Process a single file, provide a result message & text body.
  */
@@ -366,11 +457,20 @@ async function processFile(file) {
     result.analysis = getAnalysis(file, '');
   }
   else {
-    // Processing.
+    // Process text files.
     try {
-      fileContents = await readUploadedFileAsText(file);
-      result.data = fileContents;
-      result.analysis = getAnalysis(file, fileContents);
+      const arrayBuffer = await readUploadedFileAsBuffer(file);
+      const binaryString = String.fromCharCode(...new Uint8Array(arrayBuffer));
+      result.analysis = getAnalysis(file, binaryString);
+      const encoding = chardet.detect(binaryString);
+      if (!!encoding['encoding']) {
+        let format = encoding['encoding'];
+        format = mapEncoding(format);
+        var decoded = await readUploadedFileAsText(file, format);
+        console.log(format);
+        console.log(decoded);
+        result.data = decoded;
+      }
     }
     catch (e) {
       result.message = e.message;
