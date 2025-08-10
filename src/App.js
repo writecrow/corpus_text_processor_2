@@ -303,7 +303,13 @@ async function standardizeAndDownload() {
 
     if (result.data !== null) {
       var standardized = standardize(result.data);
-      zip.file(result.name + '.txt', standardized);
+      if (zip.file(result.fullpath + '.txt') == null) {
+        zip.file(result.fullpath + '.txt', standardized);
+      }
+      else {
+        // If a same-name file exists, append the original file extension.
+        zip.file(result.fullpath + '-' +result.extension + '.txt', standardized);
+      }
       results.innerHTML = '<span>Processed successfully</span>';
     }
     else {
@@ -390,17 +396,31 @@ async function processFiles(files) {
   }
 }
 
-function trimExtension(filename) {
-  return filename.replace(/\.[^/.]+$/, "");
+function getFileParts(string) {
+  const fileExtension = /[^\.]+\./g;
+  const fileName = /\.[^/.]+$/g;
+  let result = {
+    'name': string.replace(fileName, ""),
+    'ext': string.replace(fileExtension, "")
+  }
+  return result;
+}
+
+function trimExtension(string) {
+  const fileExtension = /\.[^/.]+$/g;
+  return string.replace(fileExtension, "");
 }
 
 /**
  * Process a single file, provide a result message & text body.
  */
 async function processFile(file) {
+  let fileparts = getFileParts(file.name)
   let result = {
     'hash': file.webkitRelativePath.hashCode(),
-    'name': trimExtension(file.name),
+    'name': fileparts.name,
+    'extension': fileparts.ext,
+    'fullpath': trimExtension(file.webkitRelativePath),
     'analysis': '',
     'result': '',
     'data': null,
